@@ -28,11 +28,41 @@ export default function Home() {
     if (saved) setCompletedSteps(JSON.parse(saved));
   }, []);
 
-  const handleGenerate = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!prompt.trim()) return;
-    setRoadmap(MOCK_ROADMAP);
-  };
+const handleGenerate = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!prompt.trim()) return;
+
+  try {
+    // 1. Fetch real structured JSON from our new Gemini endpoint
+    const response = await fetch('/api/roadmap', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic: prompt }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.details || errorData.error || "API Network response failed");
+    }
+    
+    const data = await response.json();
+
+    // 2. Loop through the steps from Gemini and plot them onto our whiteboard coordinates
+    const positionedSteps = data.steps.map((step: any, index: number) => ({
+      ...step,
+      x: 100 + (index * 320),       // Spaces cards apart cleanly from left to right
+      y: index % 2 === 0 ? 200 : 380, // Alternates up and down for that sticky-note whiteboard look
+    }));
+
+    // 3. Clear old checked marks and load the new AI steps into view!
+    setCompletedSteps([]);
+    setRoadmap(positionedSteps);
+
+  } catch (error) {
+    console.error("Error communicating with AI backend:", error);
+    alert("Something went wrong mapping this journey. Check your terminal logs!");
+  }
+};
 
   const toggleStep = (id: number) => {
     const updated = completedSteps.includes(id)
