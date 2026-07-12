@@ -270,36 +270,46 @@ export default function Home() {
                 margin: "0 auto",
               }}
             >
-            {/* Roamdmap Lines */}
-              <svg className="absolute inset-0 z-0 pointer-events-none w-full h-full">
-                <defs>
-                  <marker id="roadmap-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
-                    <path d="M0,0 L0,6 L6,3 z" fill="rgba(255,255,255,0.45)" />
-                  </marker>
-                </defs>
+            {/* Roadmap Lines - Simpler Version */}
+            <svg className="absolute inset-0 z-0 pointer-events-none w-full h-full">
+              <defs>
+                <marker id="roadmap-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+                  <path d="M0,0 L0,6 L6,3 z" fill="rgba(255,255,255,0.45)" />
+                </marker>
+              </defs>
 
-                {roadmap.map((step, index) => {
-                  const parentStep = roadmap.find((candidate) => candidate.dependsOn?.includes(step.id)) || roadmap[index - 1];
-                  if (!parentStep || parentStep.id === step.id) return null;
+              {roadmap.map((step) => {
+                const parentStep = roadmap.find((candidate) => 
+                  step.dependsOn?.includes(candidate.id)
+                );
+                
+                if (!parentStep) return null;
 
-                  const fromX = step.x + 120;
-                  const fromY = step.y + 116;
-                  const toX = parentStep.x + 120;
-                  const toY = parentStep.y + 16;
+                const cardWidth = 240;
+                const cardHeight = 120;
 
-                  return (
-                    <path
-                      key={`${parentStep.id}-${step.id}`}
-                      d={`M ${fromX} ${fromY} C ${fromX} ${fromY - 70} ${toX} ${toY + 70} ${toX} ${toY}`}
-                      stroke="rgba(255,255,255,0.4)"
-                      strokeWidth="2"
-                      fill="none"
-                      markerEnd="url(#roadmap-arrow)"
-                      strokeLinecap="round"
-                    />
-                  );
-                })}
-              </svg>
+                const fromX = parentStep.x + cardWidth / 2;
+                const fromY = parentStep.y + cardHeight;
+                const toX = step.x + cardWidth / 2;
+                const toY = step.y - 10;
+
+                // Calculate control points for a gentle S-curve
+                const midY = (fromY + toY) / 2;
+                const horizontalOffset = Math.min(Math.abs(toX - fromX) * 0.3, 50);
+
+                return (
+                  <path
+                    key={`${parentStep.id}-${step.id}`}
+                    d={`M ${fromX} ${fromY} C ${fromX + horizontalOffset} ${midY}, ${toX - horizontalOffset} ${midY}, ${toX} ${toY}`}
+                    stroke="rgba(255,255,255,0.4)"
+                    strokeWidth="2"
+                    fill="none"
+                    markerEnd="url(#roadmap-arrow)"
+                    strokeLinecap="round"
+                  />
+                );
+              })}
+            </svg>
 
               {roadmap.map((step) => {
               const isDone = completedSteps.includes(step.id);
