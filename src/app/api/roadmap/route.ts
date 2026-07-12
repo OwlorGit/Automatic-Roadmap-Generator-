@@ -173,7 +173,7 @@ export async function POST(req: Request) {
       - Use a numeric level for each node so the UI can place cards by depth.
       - Make each later step's level greater than or equal to the level of its prerequisites.
       - Each card (expcept for those on level 0) must have dependsOn and there must be two to four cards between levels
-      - You must have all three levels (foundational, core and advanced) and at least 3 projects
+      - You must have all three levels (foundational, core and advanced) and at least 3 projects (projects will be categorized under project category)
       - Start with beginner-friendly foundation steps at lower levels.
       - Make the roadmap progress logically from basics to more advanced work.
       - Keep the response valid JSON only, with no markdown fences.
