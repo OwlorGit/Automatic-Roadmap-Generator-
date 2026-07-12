@@ -25,15 +25,19 @@ export async function POST(req: Request) {
     });
 
     const prompt = `
-      Create a beginner-friendly learning roadmap containing roughly 4-5 steps for the following topic: "${topic}".
+      Create a comprehensive roadmap with a begineer, intermediate and advanced level for the following topic: "${topic}".
       You must respond with a raw JSON object matching this exact structure:
       {
-        "steps": [
+        "totalDuration": "e.g., 4 Weeks Total,
+        "nodes": [
           {
             "id": 1,
-            "title": "Step Title",
-            "description": "Short explanation.",
-            "resources": ["YouTube: Tutorial"]
+            "title": "Step Name",
+            "description": "Short explanation of this step.",
+            "duration" "e.g., 3-4 hours",
+            "category": "Choose exactly one: foundation, core, advanced, or project",
+            "resources": ["YouTube: Specific Guide Tutorial", "Article: In-depth Documentation Walkthrough"],
+            "prerequisites": ["Basic Concepts"]
           }
         ]
       }
