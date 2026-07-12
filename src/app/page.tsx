@@ -91,17 +91,31 @@ const buildLayout = (nodes: any[]) => {
     byLevel.get(level)!.push(node);
   });
 
+  const maxLevel = Math.max(0, ...Array.from(byLevel.keys()));
+
+  const cardWidth = 240;
+  const cardHeight = 120;
+  const horizontalGap = 280;
+  const verticalGap = 220;
+
+  const canvasWidth = 1400;
+  const canvasHeight = Math.max(720, (maxLevel + 1) * verticalGap + 300);
+
   return nodes.map((node) => {
     const level = typeof node.level === "number" ? node.level : 0;
     const siblings = byLevel.get(level) || [];
     const index = siblings.findIndex((item) => item.id === node.id);
+    const centeredIndex = index - (siblings.length - 1) / 2;
 
     return {
       ...node,
       category: node.category || "foundation",
       duration: node.duration || "1-2 hours",
-      x: 140 + level * 340,
-      y: 180 + index * 190,
+      x:
+        canvasWidth / 2 + centeredIndex * horizontalGap - cardWidth / 2,
+
+      y:
+        canvasHeight / 2 + (level - maxLevel / 2) * verticalGap - cardHeight / 2
     };
   });
 };
@@ -231,8 +245,19 @@ export default function Home() {
             <p className={`text-sm mt-1 ${UI_THEME.canvas.emptySub}`}>Provide a goal above to auto-generate custom tracks.</p>
           </div>
         ) : (
-          <div className="relative w-full h-full min-w-[2500px] min-h-[900px]">
-            {roadmap.map((step) => {
+          <div className="relative flex h-full w-full justify-center pt-24">
+            <div
+              className="relative"
+              style={{
+                width: "1400px",
+                height: `${Math.max(
+                  720,
+                  (Math.max(...roadmap.map((r) => r.level ?? 0)) + 1) * 220 + 300
+                )}px`,
+                margin: "0 auto",
+              }}
+              >
+              {roadmap.map((step) => {
               const isDone = completedSteps.includes(step.id);
               const meta = CATEGORY_META[step.category] || CATEGORY_META.foundation;
 
@@ -287,6 +312,7 @@ export default function Home() {
                 </div>
               );
             })}
+            </div>
           </div>
         )}
       </main>
