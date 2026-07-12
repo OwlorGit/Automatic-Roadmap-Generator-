@@ -11,8 +11,8 @@ import {
   Award,
 } from "lucide-react";
 
-type Category = "foundation" | "core" | "advanced" | "project";
-type ResourceType = "article" | "video" | "course" | "book" | "practice";
+// Import your custom styling tokens
+import { UI_THEME, CATEGORY_META, type Category } from "../styles/theme";
 
 interface RoadmapCard {
   id: number;
@@ -25,14 +25,6 @@ interface RoadmapCard {
   x: number;
   y: number;
 }
-
-// Minimal, muted neon borders and backgrounds optimized for a true dark theme
-const CATEGORY_META: Record<Category, { label: string; stripe: string; bg: string; text: string; border: string }> = {
-  foundation: { label: "Foundation", stripe: "#38bdf8", bg: "rgba(56, 189, 248, 0.06)", text: "#38bdf8", border: "rgba(56, 189, 248, 0.2)" },
-  core:       { label: "Core",       stripe: "#34d399", bg: "rgba(52, 211, 153, 0.06)", text: "#34d399", border: "rgba(52, 211, 153, 0.2)" },
-  advanced:   { label: "Advanced",   stripe: "#a78bfa", bg: "rgba(167, 139, 250, 0.06)", text: "#a78bfa", border: "rgba(167, 139, 250, 0.2)" },
-  project:    { label: "Project",    stripe: "#fbbf24", bg: "rgba(251, 191, 36, 0.06)", text: "#fbbf24", border: "rgba(251, 191, 36, 0.2)" },
-};
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
@@ -63,7 +55,6 @@ export default function Home() {
       }
       
       const data = await response.json();
-
       setTotalDuration(data.totalDuration || "Flexible");
 
       const nodes = data.nodes || data.steps || [];
@@ -72,7 +63,7 @@ export default function Home() {
         category: step.category || "foundation",
         duration: step.duration || "1-2 hours",
         x: 80 + (index * 260),       
-        y: index % 2 === 0 ? 220 : 400, 
+        y: 220, 
       }));
 
       setCompletedSteps([]);
@@ -107,37 +98,37 @@ export default function Home() {
     : 0;
 
   return (
-    <div className="relative min-h-screen w-screen bg-zinc-950 overflow-hidden font-sans select-none text-zinc-100">
+    <div className={`relative min-h-screen w-screen overflow-hidden font-sans select-none ${UI_THEME.background.screen} ${UI_THEME.modal.container}`}>
       
-      {/* Background Grid - Darkened opacity for less distraction */}
+      {/* Background Grid */}
       <div 
-        className="absolute inset-0 z-0 opacity-5 pointer-events-none" 
+        className={`absolute inset-0 z-0 pointer-events-none ${UI_THEME.background.gridOpacity}`} 
         style={{
-          backgroundImage: "radial-gradient(#ffffff 1px, transparent 1px)",
+          backgroundImage: UI_THEME.background.gridPattern,
           backgroundSize: "24px 24px"
         }}
       />
 
       {/* CONTROL DASHBOARD PANEL */}
       <header className="absolute top-6 left-1/2 -translate-x-1/2 z-20 w-full max-w-2xl px-4">
-        <div className="bg-zinc-900/80 backdrop-blur-md shadow-2xl border border-zinc-800/80 rounded-2xl p-4 flex flex-col gap-3">
+        <div className={`backdrop-blur-md shadow-2xl border rounded-2xl p-4 flex flex-col gap-3 ${UI_THEME.header.panelBg} ${UI_THEME.header.panelBorder}`}>
           <form onSubmit={handleGenerate} className="flex gap-2">
             <input
               type="text"
               placeholder="What do you want to learn today?"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              className="flex-1 px-4 py-2 bg-zinc-950 border border-zinc-800 rounded-xl focus:outline-none focus:border-zinc-600 text-sm text-zinc-100 placeholder-zinc-500 transition-colors"
+              className={`flex-1 px-4 py-2 border rounded-xl focus:outline-none text-sm placeholder-zinc-500 transition-colors ${UI_THEME.header.inputBg} ${UI_THEME.header.inputBorder}`}
             />
-            <button type="submit" className="bg-zinc-100 text-zinc-950 hover:bg-zinc-200 rounded-xl px-5 py-2 text-sm font-semibold transition-all shadow-sm">
+            <button type="submit" className={`rounded-xl px-5 py-2 text-sm font-semibold transition-all shadow-sm ${UI_THEME.header.buttonBg}`}>
               Generate
             </button>
           </form>
 
-          {/* Progress Bar Track Adaptations */}
-          <div className="w-full bg-zinc-950 h-1.5 rounded-full overflow-hidden border border-zinc-800">
+          {/* Progress Bar */}
+          <div className={`w-full h-1.5 rounded-full overflow-hidden border ${UI_THEME.header.progressTrack}`}>
             <div 
-              className="bg-zinc-100 h-full transition-all duration-500 ease-out" 
+              className={`h-full transition-all duration-500 ease-out ${UI_THEME.header.progressBar}`} 
               style={{ width: `${progressPercentage}%` }}
             />
           </div>
@@ -148,8 +139,8 @@ export default function Home() {
       <main className="w-full h-screen relative z-10 p-24 overflow-auto">
         {roadmap.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center pt-24">
-            <h2 className="text-xl font-medium text-zinc-400">Your Learning Board</h2>
-            <p className="text-zinc-600 text-sm mt-1">Provide a goal above to auto-generate custom tracks.</p>
+            <h2 className={`text-xl font-medium ${UI_THEME.canvas.emptyTitle}`}>Your Learning Board</h2>
+            <p className={`text-sm mt-1 ${UI_THEME.canvas.emptySub}`}>Provide a goal above to auto-generate custom tracks.</p>
           </div>
         ) : (
           <div className="relative w-full h-full min-w-[1200px] min-h-[700px]">
@@ -168,27 +159,25 @@ export default function Home() {
                   }}
                   className="transition-all duration-200 hover:scale-[1.01]"
                 >
-                  {/* DARK THEME STICKY CARD */}
+                  {/* CARD TEMPLATE */}
                   <div 
                     onClick={() => setSelectedStep(step)}
                     style={{ borderTopColor: meta.stripe }}
-                    className={`p-4 shadow-xl border-t-2 border rounded-xl cursor-pointer bg-zinc-900/90 backdrop-blur-sm transition-all duration-150 ${
-                      isDone ? 'border-zinc-900/50 opacity-25 shadow-none' : 'hover:border-zinc-700 border-zinc-800'
+                    className={`p-4 shadow-xl border-t-2 border rounded-xl cursor-pointer backdrop-blur-sm transition-all duration-150 ${UI_THEME.canvas.cardBg} ${
+                      isDone ? UI_THEME.canvas.cardCompleted : UI_THEME.canvas.cardBorder
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      {/* Interactive HTML Node Checkbox */}
                       <div onClick={(e) => e.stopPropagation()} className="pt-0.5">
                         <input 
                           type="checkbox"
                           checked={isDone} 
                           onChange={() => toggleStep(step.id)} 
-                          className="h-4 w-4 bg-zinc-950 rounded border-zinc-800 text-zinc-100 focus:ring-0 focus:ring-offset-0 cursor-pointer transition-transform active:scale-95"
+                          className={`h-4 w-4 rounded focus:ring-0 focus:ring-offset-0 cursor-pointer transition-transform active:scale-95 ${UI_THEME.canvas.checkbox}`}
                         />
                       </div>
 
                       <div className="flex-1 min-w-0">
-                        {/* Dynamic Category Tag Pill */}
                         <span 
                           style={{ backgroundColor: meta.bg, color: meta.text, borderColor: meta.border }} 
                           className="inline-block text-[9px] font-semibold px-2 py-0.5 rounded-md uppercase tracking-wider border mb-2"
@@ -196,11 +185,11 @@ export default function Home() {
                           {meta.label}
                         </span>
 
-                        <h3 className={`font-medium text-sm truncate ${isDone ? 'line-through text-zinc-600' : 'text-zinc-200'}`}>
+                        <h3 className={`font-medium text-sm truncate ${isDone ? UI_THEME.canvas.titleCompleted : UI_THEME.canvas.title}`}>
                           {step.title}
                         </h3>
 
-                        <div className="flex items-center gap-1 text-zinc-500 mt-2 text-[11px]">
+                        <div className={`flex items-center gap-1 mt-2 text-[11px] ${UI_THEME.canvas.durationText}`}>
                           <Clock className="w-3 h-3" />
                           <span>{step.duration}</span>
                         </div>
@@ -214,11 +203,11 @@ export default function Home() {
         )}
       </main>
 
-      {/* RICH VISUAL POPUP INTERACTIVE MODAL */}
+      {/* INTERACTIVE MODAL */}
       {selectedStep && (
-        <div className="fixed inset-0 bg-zinc-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setSelectedStep(null)}>
+        <div className={`fixed inset-0 backdrop-blur-sm z-50 flex items-center justify-center p-4 ${UI_THEME.modal.overlay}`} onClick={() => setSelectedStep(null)}>
           <div 
-            className="bg-zinc-900 rounded-2xl max-w-md w-full shadow-2xl p-6 border border-zinc-800 flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150 text-zinc-100" 
+            className={`rounded-2xl max-w-md w-full shadow-2xl p-6 border flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150 ${UI_THEME.modal.container}`} 
             onClick={(e) => e.stopPropagation()}
           >
             <div>
@@ -233,26 +222,25 @@ export default function Home() {
                 >
                   {CATEGORY_META[selectedStep.category].label} Track
                 </span>
-                <span className="text-xs text-zinc-400 font-medium flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5 text-zinc-500" /> {selectedStep.duration}
+                <span className={`text-xs font-medium flex items-center gap-1 ${UI_THEME.modal.metaText}`}>
+                  <Clock className={`w-3.5 h-3.5 ${UI_THEME.modal.clockIcon}`} /> {selectedStep.duration}
                 </span>
               </div>
-              <h2 className="text-lg font-bold text-zinc-100 mt-2.5">{selectedStep.title}</h2>
+              <h2 className={`text-lg font-bold mt-2.5 ${UI_THEME.modal.title}`}>{selectedStep.title}</h2>
             </div>
 
-            <p className="text-sm text-zinc-400 leading-relaxed bg-zinc-950/50 p-3 rounded-xl border border-zinc-800/60">
+            <p className={`text-sm leading-relaxed p-3 rounded-xl border ${UI_THEME.modal.descBox}`}>
               {selectedStep.description}
             </p>
 
-            {/* Display Prerequisites conditional block if returned by AI */}
             {selectedStep.prerequisites && selectedStep.prerequisites.length > 0 && (
               <div>
-                <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2 flex items-center gap-1">
+                <h4 className={`text-xs font-semibold uppercase tracking-wide mb-2 flex items-center gap-1 ${UI_THEME.modal.headerLabel}`}>
                   <Award className="w-3.5 h-3.5" /> Prerequisites
                 </h4>
                 <div className="flex flex-wrap gap-1">
                   {selectedStep.prerequisites.map((req, index) => (
-                    <span key={index} className="text-xs bg-zinc-950 text-zinc-400 px-2 py-0.5 rounded-md border border-zinc-800">
+                    <span key={index} className={`text-xs px-2 py-0.5 rounded-md border ${UI_THEME.modal.pillBg}`}>
                       {req}
                     </span>
                   ))}
@@ -260,9 +248,8 @@ export default function Home() {
               </div>
             )}
             
-            {/* Contextual Resource Curated Link Lists */}
-            <div className="border-t border-zinc-800 pt-3">
-              <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2 flex items-center gap-1">
+            <div className={`border-t pt-3 ${UI_THEME.modal.divider}`}>
+              <h4 className={`text-xs font-semibold uppercase tracking-wide mb-2 flex items-center gap-1 ${UI_THEME.modal.headerLabel}`}>
                 <BookOpen className="w-3.5 h-3.5" /> Interactive Resources
               </h4>
               <ul className="flex flex-col gap-2">
@@ -272,20 +259,20 @@ export default function Home() {
                       href={`https://www.youtube.com/results?search_query=${encodeURIComponent(res)}`}
                       target="_blank" 
                       rel="noopener noreferrer" 
-                      className="text-xs text-zinc-300 font-medium hover:text-zinc-100 flex items-center gap-2 p-2.5 bg-zinc-950 hover:bg-zinc-800/50 border border-zinc-800 rounded-xl transition-colors group"
+                      className={`text-xs font-medium flex items-center gap-2 p-2.5 rounded-xl transition-colors group border ${UI_THEME.modal.resourceLink}`}
                     >
-                      <div className="p-1 bg-zinc-900 border border-zinc-800 rounded-md">
+                      <div className={`p-1 border rounded-md ${UI_THEME.modal.resourceIconBox}`}>
                         {getResourceIcon(res)}
                       </div>
                       <span className="truncate flex-1">{res}</span>
-                      <span className="text-zinc-600 text-[10px] group-hover:translate-x-0.5 transition-transform">↗</span>
+                      <span className={`text-[10px] group-hover:translate-x-0.5 transition-transform ${UI_THEME.modal.arrowIcon}`}>↗</span>
                     </a>
                   </li>
                 ))}
               </ul>
             </div>
             
-            <button onClick={() => setSelectedStep(null)} className="w-full mt-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-xl py-2.5 font-medium text-sm transition-colors border border-zinc-700/50">
+            <button onClick={() => setSelectedStep(null)} className={`w-full mt-2 rounded-xl py-2.5 font-medium text-sm transition-colors border ${UI_THEME.modal.closeBtn}`}>
               Close Preview
             </button>
           </div>
