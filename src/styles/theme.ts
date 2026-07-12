@@ -1,5 +1,6 @@
 export type Category = "foundation" | "core" | "advanced" | "project";
 
+// Card Layout
 export interface CategoryStyle {
   label: string;
   stripe: string;

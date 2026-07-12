@@ -11,7 +11,7 @@ import {
   Award,
 } from "lucide-react";
 
-// Import your custom styling tokens
+// Imported form styles
 import { UI_THEME, CATEGORY_META, type Category } from "../styles/theme";
 
 interface RoadmapCard {
@@ -22,16 +22,107 @@ interface RoadmapCard {
   category: Category;
   resources: string[]; 
   prerequisites?: string[];
+  level?: number;
+  dependsOn?: number[];
   x: number;
   y: number;
 }
+
+const getCategoryLevel = (category: string) => {
+  const normalized = category?.toLowerCase() || "foundation";
+
+  if (normalized === "core") return 1;
+  if (normalized === "advanced") return 2;
+  if (normalized === "project") return 3;
+  return 0;
+};
+
+const normalizeRoadmap = (nodes: any[]) => {
+  const normalized = nodes.map((node, index) => ({
+    ...node,
+    id: typeof node.id === "number" ? node.id : index + 1,
+    level: Number.isFinite(Number(node.level)) ? Number(node.level) : undefined,
+    dependsOn: Array.isArray(node.dependsOn)
+      ? node.dependsOn.filter((value: any) => Number.isFinite(Number(value))).map((value: any) => Number(value))
+      : [],
+    prerequisites: Array.isArray(node.prerequisites)
+      ? node.prerequisites.filter((value: any) => typeof value === "string" && value.trim())
+      : [],
+    category: typeof node.category === "string" ? node.category : "foundation",
+  }));
+
+  const nodesById = new Map(normalized.map((node) => [node.id, node]));
+  const levelById = new Map<number, number>();
+
+  const resolveLevel = (node: any): number => {
+    if (levelById.has(node.id)) {
+      return levelById.get(node.id)!;
+    }
+
+    const explicitLevel = Number.isFinite(Number(node.level)) ? Number(node.level) : null;
+    const parentIds = (node.dependsOn || []).filter((id: number) => nodesById.has(id));
+
+    if (parentIds.length > 0) {
+      const parentLevels = parentIds.map((id: number) => resolveLevel(nodesById.get(id)!));
+      const derivedLevel = Math.max(...parentLevels.map((value: number) => value + 1));
+      const resolvedLevel = explicitLevel === null ? derivedLevel : Math.max(explicitLevel, derivedLevel);
+      levelById.set(node.id, resolvedLevel);
+      return resolvedLevel;
+    }
+
+    const fallbackLevel = explicitLevel ?? getCategoryLevel(node.category);
+    levelById.set(node.id, fallbackLevel);
+    return fallbackLevel;
+  };
+
+  normalized.forEach((node) => {
+    node.level = resolveLevel(node);
+  });
+
+  return normalized;
+};
+
+const buildLayout = (nodes: any[]) => {
+  const byLevel = new Map<number, any[]>();
+
+  nodes.forEach((node) => {
+    const level = typeof node.level === "number" ? node.level : 0;
+    if (!byLevel.has(level)) byLevel.set(level, []);
+    byLevel.get(level)!.push(node);
+  });
+
+  const maxLevel = Math.max(0, ...Array.from(byLevel.keys()));
+  const cardWidth = 240;
+  const cardHeight = 120;
+  const horizontalGap = 300;
+  const verticalGap = 300;
+  const canvasWidth = 1400;
+  const canvasHeight = Math.max(720, (maxLevel + 1) * verticalGap + 300);
+
+  return nodes.map((node) => {
+    const level = typeof node.level === "number" ? node.level : 0;
+    const siblings = byLevel.get(level) || [];
+    const index = siblings.findIndex((item) => item.id === node.id);
+    const centeredIndex = index - (siblings.length - 1) / 2;
+
+    return {
+      ...node,
+      category: node.category || "foundation",
+      duration: node.duration || "1-2 hours",
+      x: canvasWidth / 2 + centeredIndex * horizontalGap - cardWidth / 2,
+      y: canvasHeight / 2 + (level - maxLevel / 2) * verticalGap - cardHeight / 2
+    };
+  });
+};
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [roadmap, setRoadmap] = useState<RoadmapCard[]>([]);
   const [totalDuration, setTotalDuration] = useState("");
+  const [rawRoadmapResponse, setRawRoadmapResponse] = useState("");
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [selectedStep, setSelectedStep] = useState<RoadmapCard | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem("completed-steps");
@@ -40,7 +131,10 @@ export default function Home() {
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!prompt.trim()) return;
+    if (!prompt.trim() || isGenerating) return;
+
+    setIsGenerating(true);
+    setSelectedStep(null);
 
     try {
       const response = await fetch('/api/roadmap', {
@@ -56,15 +150,11 @@ export default function Home() {
       
       const data = await response.json();
       setTotalDuration(data.totalDuration || "Flexible");
+      setRawRoadmapResponse(JSON.stringify(data, null, 2));
 
       const nodes = data.nodes || data.steps || [];
-      const positionedSteps = nodes.map((step: any, index: number) => ({
-        ...step,
-        category: step.category || "foundation",
-        duration: step.duration || "1-2 hours",
-        x: 80 + (index * 260),       
-        y: 220, 
-      }));
+      const normalizedNodes = normalizeRoadmap(nodes);
+      const positionedSteps = buildLayout(normalizedNodes);
 
       setCompletedSteps([]);
       setRoadmap(positionedSteps);
@@ -72,6 +162,8 @@ export default function Home() {
     } catch (error: any) {
       console.error("Error communicating with AI backend:", error);
       alert(error.message || "Something went wrong mapping this journey.");
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -118,10 +210,15 @@ export default function Home() {
               placeholder="What do you want to learn today?"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              className={`flex-1 px-4 py-2 border rounded-xl focus:outline-none text-sm placeholder-zinc-500 transition-colors ${UI_THEME.header.inputBg} ${UI_THEME.header.inputBorder}`}
+              disabled={isGenerating}
+              className={`flex-1 px-4 py-2 border rounded-xl focus:outline-none text-sm placeholder-zinc-500 transition-colors disabled:cursor-not-allowed disabled:opacity-70 ${UI_THEME.header.inputBg} ${UI_THEME.header.inputBorder}`}
             />
-            <button type="submit" className={`rounded-xl px-5 py-2 text-sm font-semibold transition-all shadow-sm ${UI_THEME.header.buttonBg}`}>
-              Generate
+            <button
+              type="submit"
+              disabled={isGenerating}
+              className={`rounded-xl px-5 py-2 text-sm font-semibold transition-all shadow-sm disabled:cursor-not-allowed disabled:opacity-70 ${UI_THEME.header.buttonBg}`}
+            >
+              {isGenerating ? "Generating..." : "Generate"}
             </button>
           </form>
 
@@ -132,10 +229,31 @@ export default function Home() {
               style={{ width: `${progressPercentage}%` }}
             />
           </div>
+
+          {rawRoadmapResponse && (
+            <details className="rounded-xl border border-white/10 bg-black/20 p-2">
+              <summary className="cursor-pointer text-[11px] uppercase tracking-wide text-zinc-400">
+                Gemini response preview
+              </summary>
+              <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap text-[10px] leading-relaxed text-zinc-300">
+                {rawRoadmapResponse}
+              </pre>
+            </details>
+          )}
         </div>
       </header>
+      {/* Loading Screen */}
+      {isGenerating && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className={`rounded-2xl border p-8 shadow-2xl text-center ${UI_THEME.modal.container}`}>
+            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-zinc-600 border-t-white" />
+            <h2 className={`text-lg font-semibold ${UI_THEME.modal.title}`}>Generating your roadmap...</h2>
+            <p className={`mt-2 text-sm ${UI_THEME.modal.descBox}`}>This usually takes a few seconds...</p>
+          </div>
+        </div>
+      )}
 
-      {/* INFINITE CANVAS SCENE */}
+      {/* Dotted Grid */}
       <main className="w-full h-screen relative z-10 p-24 overflow-auto">
         {roadmap.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center pt-24">
@@ -143,8 +261,47 @@ export default function Home() {
             <p className={`text-sm mt-1 ${UI_THEME.canvas.emptySub}`}>Provide a goal above to auto-generate custom tracks.</p>
           </div>
         ) : (
-          <div className="relative w-full h-full min-w-[1200px] min-h-[700px]">
-            {roadmap.map((step) => {
+          <div className="relative flex h-full w-full justify-center pt-24">
+            <div
+              className="relative"
+              style={{
+                width: "1400px",
+                height: `${Math.max(720, (Math.max(...roadmap.map((r) => r.level ?? 0)) + 1) * 220 + 300)}px`, 
+                margin: "0 auto",
+              }}
+            >
+            {/* Roamdmap Lines */}
+              <svg className="absolute inset-0 z-0 pointer-events-none w-full h-full">
+                <defs>
+                  <marker id="roadmap-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+                    <path d="M0,0 L0,6 L6,3 z" fill="rgba(255,255,255,0.45)" />
+                  </marker>
+                </defs>
+
+                {roadmap.map((step, index) => {
+                  const parentStep = roadmap.find((candidate) => candidate.dependsOn?.includes(step.id)) || roadmap[index - 1];
+                  if (!parentStep || parentStep.id === step.id) return null;
+
+                  const fromX = step.x + 120;
+                  const fromY = step.y + 116;
+                  const toX = parentStep.x + 120;
+                  const toY = parentStep.y + 16;
+
+                  return (
+                    <path
+                      key={`${parentStep.id}-${step.id}`}
+                      d={`M ${fromX} ${fromY} C ${fromX} ${fromY - 70} ${toX} ${toY + 70} ${toX} ${toY}`}
+                      stroke="rgba(255,255,255,0.4)"
+                      strokeWidth="2"
+                      fill="none"
+                      markerEnd="url(#roadmap-arrow)"
+                      strokeLinecap="round"
+                    />
+                  );
+                })}
+              </svg>
+
+              {roadmap.map((step) => {
               const isDone = completedSteps.includes(step.id);
               const meta = CATEGORY_META[step.category] || CATEGORY_META.foundation;
 
@@ -199,6 +356,7 @@ export default function Home() {
                 </div>
               );
             })}
+            </div>
           </div>
         )}
       </main>
