@@ -92,12 +92,10 @@ const buildLayout = (nodes: any[]) => {
   });
 
   const maxLevel = Math.max(0, ...Array.from(byLevel.keys()));
-
   const cardWidth = 240;
   const cardHeight = 120;
-  const horizontalGap = 280;
-  const verticalGap = 220;
-
+  const horizontalGap = 300;
+  const verticalGap = 300;
   const canvasWidth = 1400;
   const canvasHeight = Math.max(720, (maxLevel + 1) * verticalGap + 300);
 
@@ -111,11 +109,8 @@ const buildLayout = (nodes: any[]) => {
       ...node,
       category: node.category || "foundation",
       duration: node.duration || "1-2 hours",
-      x:
-        canvasWidth / 2 + centeredIndex * horizontalGap - cardWidth / 2,
-
-      y:
-        canvasHeight / 2 + (level - maxLevel / 2) * verticalGap - cardHeight / 2
+      x: canvasWidth / 2 + centeredIndex * horizontalGap - cardWidth / 2,
+      y: canvasHeight / 2 + (level - maxLevel / 2) * verticalGap - cardHeight / 2
     };
   });
 };
@@ -127,6 +122,7 @@ export default function Home() {
   const [rawRoadmapResponse, setRawRoadmapResponse] = useState("");
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [selectedStep, setSelectedStep] = useState<RoadmapCard | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem("completed-steps");
@@ -135,7 +131,10 @@ export default function Home() {
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!prompt.trim()) return;
+    if (!prompt.trim() || isGenerating) return;
+
+    setIsGenerating(true);
+    setSelectedStep(null);
 
     try {
       const response = await fetch('/api/roadmap', {
@@ -163,6 +162,8 @@ export default function Home() {
     } catch (error: any) {
       console.error("Error communicating with AI backend:", error);
       alert(error.message || "Something went wrong mapping this journey.");
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -209,10 +210,15 @@ export default function Home() {
               placeholder="What do you want to learn today?"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              className={`flex-1 px-4 py-2 border rounded-xl focus:outline-none text-sm placeholder-zinc-500 transition-colors ${UI_THEME.header.inputBg} ${UI_THEME.header.inputBorder}`}
+              disabled={isGenerating}
+              className={`flex-1 px-4 py-2 border rounded-xl focus:outline-none text-sm placeholder-zinc-500 transition-colors disabled:cursor-not-allowed disabled:opacity-70 ${UI_THEME.header.inputBg} ${UI_THEME.header.inputBorder}`}
             />
-            <button type="submit" className={`rounded-xl px-5 py-2 text-sm font-semibold transition-all shadow-sm ${UI_THEME.header.buttonBg}`}>
-              Generate
+            <button
+              type="submit"
+              disabled={isGenerating}
+              className={`rounded-xl px-5 py-2 text-sm font-semibold transition-all shadow-sm disabled:cursor-not-allowed disabled:opacity-70 ${UI_THEME.header.buttonBg}`}
+            >
+              {isGenerating ? "Generating..." : "Generate"}
             </button>
           </form>
 
@@ -236,8 +242,18 @@ export default function Home() {
           )}
         </div>
       </header>
+      {/* Loading Screen */}
+      {isGenerating && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className={`rounded-2xl border p-8 shadow-2xl text-center ${UI_THEME.modal.container}`}>
+            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-zinc-600 border-t-white" />
+            <h2 className={`text-lg font-semibold ${UI_THEME.modal.title}`}>Generating your roadmap...</h2>
+            <p className={`mt-2 text-sm ${UI_THEME.modal.descBox}`}>This usually takes a few seconds...</p>
+          </div>
+        </div>
+      )}
 
-      {/* INFINITE CANVAS SCENE */}
+      {/* Dotted Grid */}
       <main className="w-full h-screen relative z-10 p-24 overflow-auto">
         {roadmap.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center pt-24">
@@ -250,13 +266,41 @@ export default function Home() {
               className="relative"
               style={{
                 width: "1400px",
-                height: `${Math.max(
-                  720,
-                  (Math.max(...roadmap.map((r) => r.level ?? 0)) + 1) * 220 + 300
-                )}px`,
+                height: `${Math.max(720, (Math.max(...roadmap.map((r) => r.level ?? 0)) + 1) * 220 + 300)}px`, 
                 margin: "0 auto",
               }}
-              >
+            >
+            {/* Roamdmap Lines */}
+              <svg className="absolute inset-0 z-0 pointer-events-none w-full h-full">
+                <defs>
+                  <marker id="roadmap-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+                    <path d="M0,0 L0,6 L6,3 z" fill="rgba(255,255,255,0.45)" />
+                  </marker>
+                </defs>
+
+                {roadmap.map((step, index) => {
+                  const parentStep = roadmap.find((candidate) => candidate.dependsOn?.includes(step.id)) || roadmap[index - 1];
+                  if (!parentStep || parentStep.id === step.id) return null;
+
+                  const fromX = step.x + 120;
+                  const fromY = step.y + 116;
+                  const toX = parentStep.x + 120;
+                  const toY = parentStep.y + 16;
+
+                  return (
+                    <path
+                      key={`${parentStep.id}-${step.id}`}
+                      d={`M ${fromX} ${fromY} C ${fromX} ${fromY - 70} ${toX} ${toY + 70} ${toX} ${toY}`}
+                      stroke="rgba(255,255,255,0.4)"
+                      strokeWidth="2"
+                      fill="none"
+                      markerEnd="url(#roadmap-arrow)"
+                      strokeLinecap="round"
+                    />
+                  );
+                })}
+              </svg>
+
               {roadmap.map((step) => {
               const isDone = completedSteps.includes(step.id);
               const meta = CATEGORY_META[step.category] || CATEGORY_META.foundation;
