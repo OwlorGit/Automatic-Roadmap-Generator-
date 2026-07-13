@@ -19,7 +19,7 @@ export const RoadmapCanvas: React.FC<RoadmapCanvasProps> = ({
   if (roadmap.length === 0) {
     return (
       <div className="h-full flex flex-col items-center justify-center text-center pt-24">
-        <h2 className={`text-xl font-medium ${UI_THEME.canvas.emptyTitle}`}>Your Learning Board</h2>
+        <h2 className={`text-xl font-medium ${UI_THEME.canvas.emptyTitle}`}>SideQuest</h2>
         <p className={`text-sm mt-1 ${UI_THEME.canvas.emptySub}`}>Provide a goal above to auto-generate custom tracks.</p>
       </div>
     );
