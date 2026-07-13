@@ -1,6 +1,90 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 
+export async function POST(req: Request) {
+  try {
+    // Check if the environment key is blank or missing
+    if (!process.env.GEMINI_API_KEY) {
+      return NextResponse.json({ 
+        error: "Missing API Key", 
+        details: "Your GEMINI_API_KEY is not being read from .env.local. Make sure the file name has a dot at the beginning and sits in your root project directory." 
+      }, { status: 500 });
+    }
+
+    const { topic } = await req.json();
+    
+    // Initialize with confirmed key
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    
+    // Using the model
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-3.1-flash-lite",
+      generationConfig: {
+        responseMimeType: "application/json",
+      }
+    });
+
+    const prompt = `
+      Create a comprehensive roadmap for the topic: "${topic}".
+      Return a raw JSON object with this exact structure:
+      {
+        "totalDuration": "A short summary such as 3 Weeks Total",
+        "nodes": [
+          {
+            "id": 1, (Max of 15 id)
+            "level": 0,
+            "dependsOn": [],
+            "title": "Step name",
+            "description": "Short explanation of why this step matters",
+            "duration": "3-4 hours",
+            "category": "foundation",
+            "resources": ["YouTube: Specific Guide Tutorial", "Article: In-depth Documentation Walkthrough", "Exericses: Simple projects/exercises for users to practice further"],
+            "prerequisites": ["Basic Concepts"]
+          }
+        ]
+      }
+
+      Rules:
+      - Use a numeric level for each node so the UI can place cards by depth.
+      - Make each later step's level greater than or equal to the level of its prerequisites.
+      - Each card (expcept for those on level 0) must have dependsOn and there must be two to four cards between levels
+      - You must have all three levels (foundational, core and advanced) and at least 3 projects (projects will be categorized under project category)
+      - Start with beginner-friendly foundation steps at lower levels.
+      - Make the roadmap progress logically from basics to more advanced work.
+      - Keep the response valid JSON only, with no markdown fences.
+    `;
+
+    const result = await model.generateContent(prompt);
+    const responseText = result.response.text();
+    console.log("Gemini roadmap response:", responseText);
+
+    if (!responseText) {
+      return NextResponse.json({ error: "Empty Response", details: "The AI did not return any text layout." }, { status: 500 });
+    }
+
+    const data = JSON.parse(responseText);
+    const normalizedNodes = (data.nodes || []).map((node: any, index: number) => ({
+      ...node,
+      id: typeof node.id === "number" ? node.id : index + 1,
+      level: typeof node.level === "number" ? node.level : 0,
+      dependsOn: Array.isArray(node.dependsOn) ? node.dependsOn : [],
+    }));
+
+    return NextResponse.json({
+      ...data,
+      nodes: normalizedNodes,
+    });
+
+  } catch (error: any) {
+    // 3. Package up the actual system error and send it out!
+    return NextResponse.json({ 
+      error: "Gemini System Crash", 
+      details: error.message || String(error) 
+    }, { status: 500 });
+  }
+}
+
+
 // // Testing Leveling system
 // export async function POST(req: Request) {
 //   return NextResponse.json({
@@ -123,88 +207,3 @@ import { NextResponse } from "next/server";
 //     ]
 //   });
 // }
-
-
-
-export async function POST(req: Request) {
-  try {
-    // Check if the environment key is blank or missing
-    if (!process.env.GEMINI_API_KEY) {
-      return NextResponse.json({ 
-        error: "Missing API Key", 
-        details: "Your GEMINI_API_KEY is not being read from .env.local. Make sure the file name has a dot at the beginning and sits in your root project directory." 
-      }, { status: 500 });
-    }
-
-    const { topic } = await req.json();
-    
-    // Initialize with confirmed key
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    
-    // Using the model
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-3.1-flash-lite",
-      generationConfig: {
-        responseMimeType: "application/json",
-      }
-    });
-
-    const prompt = `
-      Create a comprehensive roadmap for the topic: "${topic}".
-      Return a raw JSON object with this exact structure:
-      {
-        "totalDuration": "A short summary such as 3 Weeks Total",
-        "nodes": [
-          {
-            "id": 1, (Max of 15 id)
-            "level": 0,
-            "dependsOn": [],
-            "title": "Step name",
-            "description": "Short explanation of why this step matters",
-            "duration": "3-4 hours",
-            "category": "foundation",
-            "resources": ["YouTube: Specific Guide Tutorial", "Article: In-depth Documentation Walkthrough", "Exericses: Simple projects/exercises for users to practice further"],
-            "prerequisites": ["Basic Concepts"]
-          }
-        ]
-      }
-
-      Rules:
-      - Use a numeric level for each node so the UI can place cards by depth.
-      - Make each later step's level greater than or equal to the level of its prerequisites.
-      - Each card (expcept for those on level 0) must have dependsOn and there must be two to four cards between levels
-      - You must have all three levels (foundational, core and advanced) and at least 3 projects (projects will be categorized under project category)
-      - Start with beginner-friendly foundation steps at lower levels.
-      - Make the roadmap progress logically from basics to more advanced work.
-      - Keep the response valid JSON only, with no markdown fences.
-    `;
-
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
-    console.log("Gemini roadmap response:", responseText);
-
-    if (!responseText) {
-      return NextResponse.json({ error: "Empty Response", details: "The AI did not return any text layout." }, { status: 500 });
-    }
-
-    const data = JSON.parse(responseText);
-    const normalizedNodes = (data.nodes || []).map((node: any, index: number) => ({
-      ...node,
-      id: typeof node.id === "number" ? node.id : index + 1,
-      level: typeof node.level === "number" ? node.level : 0,
-      dependsOn: Array.isArray(node.dependsOn) ? node.dependsOn : [],
-    }));
-
-    return NextResponse.json({
-      ...data,
-      nodes: normalizedNodes,
-    });
-
-  } catch (error: any) {
-    // 3. Package up the actual system error and send it out!
-    return NextResponse.json({ 
-      error: "Gemini System Crash", 
-      details: error.message || String(error) 
-    }, { status: 500 });
-  }
-}
