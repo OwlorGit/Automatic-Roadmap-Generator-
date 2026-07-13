@@ -207,7 +207,7 @@ export default function Home() {
           <form onSubmit={handleGenerate} className="flex gap-2">
             <input
               type="text"
-              placeholder="What do you want to learn today?"
+              placeholder="What quest do you want to adventure today?"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               disabled={isGenerating}
@@ -257,8 +257,8 @@ export default function Home() {
       <main className="w-full h-screen relative z-10 p-24 overflow-auto">
         {roadmap.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center pt-24">
-            <h2 className={`text-xl font-medium ${UI_THEME.canvas.emptyTitle}`}>Your Learning Board</h2>
-            <p className={`text-sm mt-1 ${UI_THEME.canvas.emptySub}`}>Provide a goal above to auto-generate custom tracks.</p>
+            <h2 className={`text-xl font-medium ${UI_THEME.canvas.emptyTitle}`}>SideQuest</h2>
+            <p className={`text-sm mt-1 ${UI_THEME.canvas.emptySub}`}>Provide a goal above to auto-generate a roadmap.</p>
           </div>
         ) : (
           <div className="relative flex h-full w-full justify-center pt-24">
